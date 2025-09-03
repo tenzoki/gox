@@ -1,0 +1,89 @@
+# Pool defines available agent types (not instances)
+
+pool:
+  agent_types:
+    - agent_type: "file-ingester"
+      binary: "operators/file_ingester/main.go"
+      operator: "call" # Default deployment strategy
+      capabilities: ["file-ingestion", "directory-watching"]
+      description: "Watches directories and ingests files"
+
+    - agent_type: "text-transformer"
+      binary: "operators/text_transformer/main.go"
+      operator: "spawn" # Process spawning (changed from await for demo)
+      capabilities: ["text-processing", "transformation"]
+      description: "Transforms text content"
+
+    - agent_type: "file-writer"
+      binary: "operators/file_writer/main.go"
+      operator: "spawn" # Process spawning
+      capabilities: ["file-writing", "data-persistence"]
+      description: "Writes processed data to files"
+
+    - agent_type: "adapter"
+      binary: "cmd/adapter/main.go"
+      operator: "spawn" # Process spawning
+      capabilities:
+        [
+          "text-transform",
+          "format-conversion",
+          "json-processing",
+          "csv-processing",
+          "base64-encoding",
+        ]
+      description: "Provides data transformation services to other agents"
+
+    # Test-specific agent types
+    - agent_type: "test-agent"
+      binary: "test/test_agent"
+      operator: "spawn"
+      capabilities: ["test"]
+      description: "Test agent for integration tests"
+
+    - agent_type: "file-processor"
+      binary: "operators/file_processor/main.go"
+      operator: "spawn"
+      capabilities: ["file", "processing"]
+      description: "File processor agent for tests"
+
+    - agent_type: "concurrent-test"
+      binary: "test/concurrent_agent"
+      operator: "spawn"
+      capabilities: ["concurrent", "test"]
+      description: "Concurrent test agent"
+
+    - agent_type: "health-test"
+      binary: "test/health_agent"
+      operator: "spawn"
+      capabilities: ["health", "test"]
+      description: "Health check test agent"
+
+    - agent_type: "test-support-agent"
+      binary: "test/support_agent"
+      operator: "spawn"
+      capabilities: ["support", "test"]
+      description: "Support service test agent"
+
+    - agent_type: "data-transformer"
+      binary: "operators/data_transformer/main.go"
+      operator: "spawn"
+      capabilities: ["data", "transformation"]
+      description: "Data transformation agent for tests"
+
+    - agent_type: "processor"
+      binary: "operators/processor/main.go"
+      operator: "spawn"
+      capabilities: ["processing"]
+      description: "Generic processor agent for tests"
+
+    - agent_type: "writer"
+      binary: "operators/writer/main.go"
+      operator: "spawn"
+      capabilities: ["writing"]
+      description: "Generic writer agent for tests"
+
+    - agent_type: "test-client-agent"
+      binary: "test/client_agent"
+      operator: "spawn"
+      capabilities: ["client", "test"]
+      description: "Test client agent"

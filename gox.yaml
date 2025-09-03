@@ -1,0 +1,30 @@
+# Gox Config for Pipeline Demo
+# This tells the orchestrator to load the pipeline cell
+
+app_name: "gox-app"
+debug: true
+
+# For senden stop | pause | resume to all agents (broadcast)
+support:
+  port: ":9000"
+  #always "tcp"
+  debug: true
+
+broker:
+  port: ":9001"
+  protocol: "tcp" # tcp | uds
+  codec: "json"
+  debug: true
+
+basedir:
+  - "./"
+
+# Pool
+pool:
+  - "pool.yaml"
+
+cells:
+  - "cells.yaml"
+
+await-timeout_seconds: 300
+await_support_reboot_seconds: 300
