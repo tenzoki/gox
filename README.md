@@ -7,18 +7,10 @@
 
 Gox is a revolutionary distributed processing system that **eliminates 90% of agent boilerplate code** through its innovative Agent Framework. Build complex data pipelines with just business logic - the framework handles all infrastructure concerns automatically.
 
-## ⚡ **Revolutionary Agent Framework**
+## ⚡ **Gox Agent Framework**
 
-**Before** (Traditional agent - 100+ lines of boilerplate):
-```go
-// 37 lines of BaseAgent setup
-// 25 lines of connection management  
-// 20 lines of signal handling
-// 30+ lines of message processing loops
-// Custom business logic scattered throughout
-```
+**Minimal Code** 
 
-**After** (Framework agent - minimal code):
 ```go
 type TextTransformer struct {
     agent.DefaultAgentRunner
@@ -130,6 +122,7 @@ Gox implements a **distributed microservices architecture** with three core infr
 
 ### Core Infrastructure Services
 
+#### Orchestrator Core Services
 ```mermaid
 graph TB
     subgraph "Gox Orchestrator Process"
@@ -138,6 +131,30 @@ graph TB
         BROKER[Broker Service :9001<br/>• Message Routing<br/>• Pub/Sub Topics<br/>• Point-to-Point Pipes]
     end
     
+    ORCH --> SUPP
+    ORCH --> BROKER
+```
+
+#### Configuration System
+```mermaid
+graph LR
+    subgraph "Configuration Files"
+        GOXCONF[gox.yaml<br/>Infrastructure Config<br/>• Service Ports<br/>• Debug Settings]
+        POOLCONF[pool.yaml<br/>Agent Pool Definition<br/>• Agent Types<br/>• Deployment Strategy]
+        CELLCONF[cells.yaml<br/>Pipeline Configuration<br/>• Agent Instances<br/>• Dependencies<br/>• Routing]
+    end
+    
+    ORCH[Orchestrator Core]
+    ORCH -.->|Reads| GOXCONF
+    ORCH -.->|Reads| POOLCONF
+    ORCH -.->|Reads| CELLCONF
+```
+
+#### Agent Registration & Discovery
+```mermaid
+graph TB
+    SUPP[Support Service :9000<br/>Agent Registry]
+    
     subgraph "Agent Ecosystem"
         A1[File Ingester<br/>Agent]
         A2[Text Transformer<br/>Agent] 
@@ -145,98 +162,71 @@ graph TB
         A4[Custom Agent<br/>...]
     end
     
-    subgraph "Configuration System"
-        GOXCONF[gox.yaml<br/>Infrastructure Config]
-        POOLCONF[pool.yaml<br/>Agent Pool Definition]
-        CELLCONF[cells.yaml<br/>Pipeline Configuration]
-    end
-    
-    subgraph "Communication Patterns"
-        PUBSUB[📢 Pub/Sub Topics<br/>One-to-Many Broadcasting]
-        PIPES[🔗 Point-to-Point Pipes<br/>Direct Agent-to-Agent]
-        FILES[📁 File I/O<br/>Filesystem Integration]
-    end
-    
-    %% Core connections
-    ORCH --> SUPP
-    ORCH --> BROKER
-    ORCH -.->|Reads Config| GOXCONF
-    ORCH -.->|Reads Pool| POOLCONF
-    ORCH -.->|Reads Cells| CELLCONF
-    
-    %% Agent registrations
     A1 -.->|Register & Connect| SUPP
     A2 -.->|Register & Connect| SUPP
     A3 -.->|Register & Connect| SUPP
     A4 -.->|Register & Connect| SUPP
+```
+
+#### Communication Patterns & Message Flow
+```mermaid
+graph TB
+    BROKER[Broker Service :9001<br/>Message Router]
     
-    %% Agent communications
-    A1 -->|Connect & Route| BROKER
-    A2 -->|Connect & Route| BROKER
-    A3 -->|Connect & Route| BROKER
-    A4 -->|Connect & Route| BROKER
+    subgraph "Communication Patterns"
+        PUBSUB[📢 Pub/Sub Topics<br/>One-to-Many Broadcasting<br/>pub:topic → sub:topic]
+        PIPES[🔗 Point-to-Point Pipes<br/>Direct Agent-to-Agent<br/>pipe:channel-name]
+        FILES[📁 File I/O<br/>Filesystem Integration<br/>file:path/*.ext]
+    end
     
-    %% Communication patterns
+    subgraph "Message Flow Example"
+        A1[File Ingester] 
+        A2[Text Transformer]
+        A3[File Writer]
+    end
+    
     BROKER --> PUBSUB
     BROKER --> PIPES
     A1 --> FILES
     A3 --> FILES
     
-    %% Data flow examples
     A1 -.->|pub:new-files| PUBSUB
     PUBSUB -.->|sub:new-files| A2
     A2 -.->|pipe:processed| PIPES
     PIPES -.->|pipe:processed| A3
-    
 ```
 
 ### Agent Deployment and Communication Flow
 
+#### Deployment Strategies
 ```mermaid
 graph TB
-    subgraph "Configuration Layer"
-        GOXCONF[gox.yaml Infrastructure Config]
-        POOLCONF[pool.yaml Agent Types Definition]
-        CELLCONF[cells.yaml Pipeline Instances]
+    subgraph "pool.yaml Configuration"
+        POOLCONF["Agent Types Definition<br/>operator: call/spawn/await"]
     end
     
-    subgraph "Deployment Strategies"
-        CALL[call: operators<br/>📦 Embedded Execution<br/>• Same process space<br/>• Fastest startup<br/>• Shared resources]
-        SPAWN[spawn: operators<br/>🔄 Process Isolation<br/>• Independent processes<br/>• Managed lifecycle<br/>• Resource isolation]
-        AWAIT[await: operators<br/>🌐 External Connection<br/>• Distributed deployment<br/>• Maximum flexibility<br/>• Cross-machine scaling]
+    subgraph "Deployment Options"
+        CALL["📦 call: operators<br/>• Embedded Execution<br/>• Same process space<br/>• Fastest startup<br/>• Shared resources"]
+        SPAWN["🔄 spawn: operators<br/>• Process Isolation<br/>• Independent processes<br/>• Managed lifecycle<br/>• Resource isolation"]
+        AWAIT["🌐 await: operators<br/>• External Connection<br/>• Distributed deployment<br/>• Maximum flexibility<br/>• Cross-machine scaling"]
     end
     
-    subgraph "Agent Lifecycle States"
-        INSTALLED[🔧 Installed<br/>Agent binary ready] 
-        CONFIGURED[⚙️ Configured<br/>Settings applied]
-        READY[✅ Ready<br/>Dependencies met]
-        RUNNING[🚀 Running<br/>Processing active]
-        PAUSED[⏸️ Paused<br/>Temporarily stopped]
-        STOPPED[⏹️ Stopped<br/>Gracefully shut down]
-        ERROR[❌ Error<br/>Fault detected]
-    end
-    
-    subgraph "Communication Patterns"
-        FILEPAT[📁 File Pattern<br/>file:path/*.ext<br/>• Filesystem integration<br/>• Batch processing<br/>• File watching]
-        PUBSUBPAT[📢 Pub/Sub Pattern<br/>pub:topic / sub:topic<br/>• One-to-many broadcast<br/>• Event-driven processing<br/>• Loose coupling]
-        PIPEPAT[🔗 Pipe Pattern<br/>pipe:channel-name<br/>• One-to-one delivery<br/>• Sequential processing<br/>• Guaranteed delivery]
-    end
-    
-    subgraph "Message Envelope System"
-        ENV[📨 Envelope Structure<br/>• Unique ID & Correlation<br/>• Source/Destination routing<br/>• Timestamp & TTL<br/>• Headers & Properties<br/>• Tracing & Hop count]
-    end
-    
-    %% Configuration flows
-    CELLCONF --> CALL
-    CELLCONF --> SPAWN  
-    CELLCONF --> AWAIT
     POOLCONF --> CALL
     POOLCONF --> SPAWN
     POOLCONF --> AWAIT
-    GOXCONF -.-> POOLCONF
-    GOXCONF -.-> CELLCONF
+```
+
+#### Agent Lifecycle States
+```mermaid
+graph LR
+    INSTALLED[🔧 Installed<br/>Agent binary ready] 
+    CONFIGURED[⚙️ Configured<br/>Settings applied]
+    READY[✅ Ready<br/>Dependencies met]
+    RUNNING[🚀 Running<br/>Processing active]
+    PAUSED[⏸️ Paused<br/>Temporarily stopped]
+    STOPPED[⏹️ Stopped<br/>Gracefully shut down]
+    ERROR[❌ Error<br/>Fault detected]
     
-    %% Lifecycle transitions
     INSTALLED --> CONFIGURED
     CONFIGURED --> READY
     READY --> RUNNING
@@ -246,22 +236,30 @@ graph TB
     PAUSED --> RUNNING
     STOPPED --> READY
     ERROR --> READY
+```
+
+#### Message Envelope System
+```mermaid
+graph TB
+    subgraph "Message Envelope Structure"
+        ENV[📨 Envelope<br/>• Unique ID & Correlation<br/>• Source/Destination routing<br/>• Timestamp & TTL<br/>• Headers & Properties<br/>• Tracing & Hop count]
+    end
     
-    %% Communication flows
-    CALL --> FILEPAT
-    SPAWN --> PUBSUBPAT
-    AWAIT --> PIPEPAT
+    subgraph "Communication Patterns"
+        FILEPAT[📁 File Pattern<br/>file:path/*.ext<br/>• Filesystem integration<br/>• Batch processing<br/>• File watching]
+        PUBSUBPAT[📢 Pub/Sub Pattern<br/>pub:topic / sub:topic<br/>• One-to-many broadcast<br/>• Event-driven processing<br/>• Loose coupling]
+        PIPEPAT[🔗 Pipe Pattern<br/>pipe:channel-name<br/>• One-to-one delivery<br/>• Sequential processing<br/>• Guaranteed delivery]
+    end
+    
     FILEPAT --> ENV
     PUBSUBPAT --> ENV
     PIPEPAT --> ENV
-    
-    
 ```
 
-## 🎯 **Core Improvements** in v0.0.3 
+## 🎯 **Core Concepts** 
 
-### **🔧 Agent Framework (90% Boilerplate Elimination)**
-The breakthrough `AgentFramework` handles all infrastructure concerns:
+### **🔧 Agent Framework**
+The `AgentFramework` handles all infrastructure concerns:
 - **BaseAgent initialization** - Connection setup, configuration sync
 - **Message processing loops** - Ingress/egress handling, routing
 - **Signal handling** - Graceful shutdown, cleanup
@@ -290,7 +288,8 @@ The breakthrough `AgentFramework` handles all infrastructure concerns:
 
 ### **Creating Agents** (Business Logic Only)
 
-**File Ingester** (28 lines total, was 120+):
+**File Ingester**
+
 ```go
 type FileIngester struct {
     agent.DefaultAgentRunner
@@ -306,7 +305,8 @@ func main() {
 }
 ```
 
-**Text Transformer** (73 lines total, was 180+):
+**Text Transformer**
+
 ```go
 func (t *TextTransformer) ProcessMessage(msg *client.BrokerMessage, base *agent.BaseAgent) (*client.BrokerMessage, error) {
     text := strings.ToUpper(msg.Payload.(string))
@@ -321,6 +321,7 @@ func (t *TextTransformer) ProcessMessage(msg *client.BrokerMessage, base *agent.
 ### **Pipeline Configuration**
 
 **Main Config** (`gox.yaml`):
+
 ```yaml
 app_name: "my-pipeline"
 debug: true
@@ -566,37 +567,8 @@ go build -o build/my_processor my_processor.go
 # Add to pool.yaml and cells.yaml, then restart gox
 ```
 
-## 🚦 **System Status**
-
-### **Production Ready ✅**
-- Core infrastructure services (Support, Broker, Orchestrator)
-- Agent lifecycle management and dependency resolution  
-- Message routing with pub/sub and pipe patterns
-- Configuration system with YAML validation
-- Comprehensive testing suite with integration tests
-
-### **Stable Features ✅**
-- Envelope-based message system with tracing
-- Multiple agent deployment strategies (call/spawn/await)
-- Graceful startup/shutdown with dependency ordering
-- Real-time configuration updates and health monitoring
-- Cross-platform support (Linux, macOS, Windows)
-
-### **Active Development 🚧**
-- Enhanced message persistence and delivery guarantees
-- Advanced routing patterns and load balancing
-- Distributed cluster support with leader election
-- Enhanced monitoring with metrics export
-- Plugin system for custom operators
-
-## 🚦 **System Status**
-
-✅ **Production Ready**: Core infrastructure, agent framework, dependency resolution  
-✅ **Stable Features**: Message routing, envelope system, multi-deployment strategies  
-🚧 **Active Development**: Enhanced persistence, cluster support, metrics export
-
 ---
 
-**Gox v3**: The first distributed processing system with **zero-boilerplate agents**. Revolutionary Agent Framework eliminates 90% of infrastructure code - write only business logic, deploy anywhere. 🚀
+**Gox**: The distributed processing system with **zero-boilerplate agents**. The Agent Framework eliminates 90% of infrastructure code - write only business logic, deploy anywhere. 🚀
 
 **Key Innovation**: `agent.Run(&MyAgent{}, "agent-type")` - that's literally all the infrastructure code you need!

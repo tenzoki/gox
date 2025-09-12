@@ -1,0 +1,121 @@
+add KV store, use bbolt:
+
+import "go.etcd.io/bbolt"
+
+db, _ := bbolt.Open("data.db", 0600, nil)
+defer db.Close()
+
+db.Update(func(tx *bbolt.Tx) error {
+    b, _ := tx.CreateBucketIfNotExists([]byte("kv"))
+    return b.Put([]byte("foo"), []byte("bar"))
+})
+
+db.View(func(tx *bbolt.Tx) error {
+    v := tx.Bucket([]byte("kv")).Get([]byte("foo"))
+    // use v
+    return nil
+})
+
+also use it as graph store
+
+
+db, _ := bbolt.Open("data.db", 0600, nil)
+defer db.Close()
+
+// KV
+db.Update(func(tx *bbolt.Tx) error {
+    b, _ := tx.CreateBucketIfNotExists([]byte("kv"))
+    return b.Put([]byte("foo"), []byte("bar"))
+})
+
+// Graph
+db.Update(func(tx *bbolt.Tx) error {
+    v, _ := tx.CreateBucketIfNotExists([]byte("V"))
+    v.Put([]byte("alice"), []byte(`{"type":"person"}`))
+
+    e, _ := tx.CreateBucketIfNotExists([]byte("E:alice"))
+    e.Put([]byte("bob"), []byte(`{"label":"knows"}`))
+    return nil
+})
+
+Here’s a clean, single-file bbolt layout that holds plain KV and a graph (vertices + adjacencies):
+
+Top-level buckets
+	•	kv – generic key/value.
+	•	meta – app/version info.
+	•	seq – optional ID counters (if you don’t use bbolt’s per-bucket NextSequence()).
+	•	V – vertices.
+	•	E – outgoing edges (adjacency lists).
+	•	RE – reverse edges (incoming adjacencies; optional but recommended).
+	•	V:idx:<prop> – secondary indexes on vertex properties (optional).
+	•	E:idx:<label> – secondary indexes on edge labels/types (optional).
+
+Keys & values (suggested)
+	•	Vertex IDs: fixed-length big-endian uint64 (fast range scans) or ULIDs.
+	•	Encoding: JSON or CBOR for props; keep small, immutable fields near the top.
+
+kv
+	•	key = arbitrary ([]byte), val = []byte.
+
+V (vertices)
+	•	key = vertexID (e.g., 8-byte big-endian).
+	•	val = encoded vertex props (e.g., {"type":"Asset","name":"AHU-5"}).
+
+E (outgoing edges)
+	•	Bucket per source vertex:
+	•	name: E:<srcID> (string prefix + binary id), or better: a parent E bucket with child buckets keyed by srcID.
+	•	Inside E:<srcID>:
+	•	key = composite of dstID (and optionally label), e.g. [dstID(8)] or [dstID(8)|0x00|label].
+	•	val = edge props (e.g., {"label":"feeds","since":"2024-01-01"}).
+
+RE (incoming/reverse)
+	•	Symmetric to E, for fast “who points to X?” queries:
+	•	RE:<dstID> → keys are srcID, values = (optional) minimal edge info.
+
+V:idx:<prop> (vertex secondary index)
+	•	Example: V:idx:type
+	•	child bucket per prop value, e.g. V:idx:type/Asset containing:
+	•	key = vertexID, val = empty (nil) or a tiny marker.
+	•	Lets you list all vertices of a given type quickly.
+
+E:idx:<label> (edge label index)
+	•	Example: E:idx:feeds
+	•	keys = composite [srcID(8)|dstID(8)], values optional.
+	•	Lets you scan all edges of a label, or prefix-filter by srcID.
+
+Directory-style view (conceptual)
+
+/
+├─ kv
+├─ meta
+├─ seq
+├─ V
+│   ├─ 00000001 → { ... vertex props ... }
+│   └─ 00000002 → { ... }
+├─ E
+│   ├─ 00000001 (bucket)   # edges from 1
+│   │    ├─ 00000002 → { "label":"knows" }
+│   │    └─ 00000003 → { "label":"feeds" }
+│   └─ 00000002 ...
+├─ RE
+│   ├─ 00000002 (bucket)   # incoming to 2
+│   │    └─ 00000001 → { "label":"knows" }
+│   └─ 00000003 ...
+├─ V:idx:type
+│   ├─ Person (bucket)
+│   │    ├─ 00000001 → ·
+│   └─ Asset (bucket)
+│        └─ 00000003 → ·
+└─ E:idx:feeds
+     └─ 00000001|00000003 → ·
+
+Notes & best practices
+	•	One DB file, many buckets. One write txn at a time; group multi-bucket updates (V/E/RE/indexes) atomically in one Update.
+	•	IDs & keys: prefer fixed-width big-endian for good ordering and prefix scans; avoid string concatenation ambiguities (use separators or length-prefix).
+	•	Reverse edges: keep RE in sync with E on add/delete to enable O(1) in- and out-neighbors.
+	•	Indexes are optional: add V:idx:* / E:idx:* only when needed.
+	•	TTL: bbolt has none; if needed, store expiresAt and prune via a periodic job.
+	•	Large properties: store blobs separately (e.g., V:data:<id> bucket) to keep hot paths small.
+	•	Schema evolution: version fields in meta; write idempotent migrations.
+
+This structure stays simple, fast, and fully embedded, while giving you O(1) lookups, efficient neighbor scans, and optional indexes for common queries.
